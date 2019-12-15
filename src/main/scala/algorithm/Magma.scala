@@ -25,7 +25,10 @@ final class Magma(
     (3 to 0 by -1)
       .foldLeft(0: Int, Array.emptyByteArray) {
         case ((state: Int, output: Array[Byte]), position: Int) =>
-          val newState: Int = roundKey(position) + rightBytes(position) + (state >>> 8)
+          val newState: Int =
+            (if (roundKey(position) < 0) 256 + roundKey(position) else roundKey(position)) +
+              (if (rightBytes(position) < 0) 256 + rightBytes(position) else rightBytes(position)) +
+              (state >>> 8)
           newState -> (output :+ (newState & 0xff).toByte)
       }
       ._2
@@ -52,15 +55,15 @@ final class Magma(
     input: Array[Byte],
     key: List[Array[Byte]],
     roundNumber: Int = 0,
-    isDecipher: Boolean = false
+    isDecrypt: Boolean = false
   ): Array[Byte] = {
     val leftSide: Array[Byte]  = input.take(4)
     val rightSide: Array[Byte] = input.drop(4)
-    if (!isDecipher && roundNumber != key.length - 1)
-      roundIteration(round(key(roundNumber), leftSide, rightSide), key, roundNumber + 1, isDecipher)
-    else if (!isDecipher) round(key.last, leftSide, rightSide, isLastRound = true)
+    if (!isDecrypt && roundNumber != key.length - 1)
+      roundIteration(round(key(roundNumber), leftSide, rightSide), key, roundNumber + 1, isDecrypt)
+    else if (!isDecrypt) round(key.last, leftSide, rightSide, isLastRound = true)
     else if (roundNumber != 0)
-      roundIteration(round(key(roundNumber), leftSide, rightSide), key, roundNumber - 1, isDecipher)
+      roundIteration(round(key(roundNumber), leftSide, rightSide), key, roundNumber - 1, isDecrypt)
     else round(key.head, leftSide, rightSide, isLastRound = true)
   }
 
@@ -68,7 +71,7 @@ final class Magma(
     roundIteration(data, expandedKey)
 
   def decrypt(data: Array[Byte]): Array[Byte] =
-    roundIteration(data, expandedKey, expandedKey.length - 1, isDecipher = true)
+    roundIteration(data, expandedKey, expandedKey.length - 1, isDecrypt = true)
 
   private val pi: Array[Int] = Array(
     1, 7, 14, 13, 0, 5, 8, 3, 4, 15, 10, 6, 9, 12, 11, 2, 8, 14, 2, 5, 6, 9, 1, 12, 15, 4, 11, 0, 13, 10, 3, 7, 5, 13,
